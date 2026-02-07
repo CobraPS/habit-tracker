@@ -56,6 +56,25 @@ async function setSettings(value) {
   await db.put("settings", { key: "global", value });
 }
 
+async function updateHabit(habit) {
+  const db = await getDB();
+  await db.put("habits", habit);
+}
+
+async function deleteHabitById(habitId) {
+  const db = await getDB();
+
+  // delete habit
+  await db.delete("habits", habitId);
+
+  // delete all logs for that habit
+  const logs = await db.getAll("logs");
+  const toDelete = logs.filter((l) => l.habitId === habitId).map((l) => l.key);
+  for (const key of toDelete) await db.delete("logs", key);
+}
+
+
+
 function timeToMsUntilNext(timeHHMM) {
   const [hh, mm] = timeHHMM.split(":").map(Number);
   const now = new Date();
@@ -72,9 +91,12 @@ export default function App() {
   const [name, setName] = useState("");
   const [notifStatus, setNotifStatus] = useState(null);
   const [settings, setSettingsState] = useState({
-  reminderTime: "09:00",
-  theme: "system",
-});
+    reminderTime: "09:00",
+    theme: "system",
+  });
+
+  const [editingId, setEditingId] = useState(null);
+  const [editingName, setEditingName] = useState("");
 
   const [selectedHabitId, setSelectedHabitId] = useState("");
 

@@ -8,6 +8,21 @@ function uid() {
   return crypto.randomUUID();
 }
 
+// theme helper
+function applyTheme(theme) {
+  const root = document.documentElement;
+
+  if (theme === "system") {
+    const prefersDark =
+      window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches;
+    root.dataset.theme = prefersDark ? "dark" : "light";
+  } else {
+    root.dataset.theme = theme; // "light" or "dark"
+  }
+}
+
+
 async function loadAll() {
   const db = await getDB();
   const habits = await db.getAll("habits");
@@ -32,7 +47,8 @@ async function setLog(habitId, date, done) {
 async function getSettings() {
   const db = await getDB();
   const s = await db.get("settings", "global");
-  return s?.value ?? { reminderTime: "09:00" };
+  return s?.value ?? { reminderTime: "09:00", theme: "system" };
+
 }
 
 async function setSettings(value) {
@@ -49,12 +65,17 @@ function timeToMsUntilNext(timeHHMM) {
   return next.getTime() - now.getTime();
 }
 
+
 export default function App() {
   const [habits, setHabits] = useState([]);
   const [doneMap, setDoneMap] = useState({});
   const [name, setName] = useState("");
   const [notifStatus, setNotifStatus] = useState(null);
-  const [settings, setSettingsState] = useState({ reminderTime: "09:00" });
+  const [settings, setSettingsState] = useState({
+  reminderTime: "09:00",
+  theme: "system",
+});
+
   const [selectedHabitId, setSelectedHabitId] = useState("");
 
 
@@ -65,15 +86,19 @@ export default function App() {
     [habits]
   );
 
-
-    useEffect(() => {
+useEffect(() => {
   (async () => {
     const hs = await loadAll();
     setHabits(hs);
-    setSettingsState(await getSettings());
+
+    const s = await getSettings();
+    setSettingsState(s);
+    applyTheme(s.theme ?? "system");
+
     if (hs.length > 0) setSelectedHabitId(hs[0].id);
   })();
 }, []);
+
 
 
   useEffect(() => {
@@ -123,6 +148,10 @@ export default function App() {
     };
   }, [settings.reminderTime]);
 
+useEffect(() => {
+  applyTheme(settings.theme ?? "system");
+}, [settings.theme]);
+
   async function addHabit(e) {
     e.preventDefault();
     const trimmed = name.trim();
@@ -158,6 +187,13 @@ export default function App() {
     await setSettings(next);
   }
 
+async function updateTheme(theme) {
+  const next = { ...settings, theme };
+  setSettingsState(next);
+  await setSettings(next);
+}
+
+
   return (
     <div style={{ maxWidth: 680, margin: "24px auto", padding: 16, fontFamily: "system-ui, Arial" }}>
       <h2 style={{ margin: 0 }}>Habit Tracker</h2>
@@ -177,6 +213,7 @@ export default function App() {
         <button onClick={enableNotifs} style={{ padding: "8px 12px" }}>
           Enable notifications
         </button>
+        
         <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
           Reminder time
           <input
@@ -185,6 +222,22 @@ export default function App() {
             onChange={(e) => updateReminderTime(e.target.value)}
           />
         </label>
+        
+        
+<label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+  Theme
+  <select
+    value={settings.theme ?? "system"}
+    onChange={(e) => updateTheme(e.target.value)}
+    style={{ padding: 6 }}
+  >
+    <option value="system">System</option>
+    <option value="light">Light</option>
+    <option value="dark">Dark</option>
+  </select>
+</label>
+
+
         {notifStatus && (
           <span>
             Notifications: {notifStatus.ok ? "enabled" : `not enabled (${notifStatus.reason})`}

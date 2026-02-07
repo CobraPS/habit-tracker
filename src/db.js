@@ -38,3 +38,53 @@ export function isScheduledToday(habit) {
   return true;
 }
 
+export function monthStartEndISO(date = new Date()) {
+  const y = date.getFullYear();
+  const m = date.getMonth();
+  const start = new Date(y, m, 1);
+  const end = new Date(y, m + 1, 0);
+  const toISO = (d) => {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+  return { start: toISO(start), end: toISO(end) };
+}
+
+export function isoToDate(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+export function addMonths(date, delta) {
+  return new Date(date.getFullYear(), date.getMonth() + delta, 1);
+}
+
+export function daysInMonth(date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+}
+
+export function firstDayOfMonth(date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1).getDay(); // 0=Sun
+}
+
+export async function getHabitLogsForMonth(habitId, date = new Date()) {
+  const db = await getDB();
+  const { start, end } = monthStartEndISO(date);
+
+  const startKey = `${habitId}:${start}`;
+  const endKey = `${habitId}:${end}`;
+
+  const logs = await db.getAll("logs");
+  // logs store is small; filter in memory for simplicity
+  // If it grows large, switch to an index on habitId/date.
+  const set = new Set(
+    logs
+      .filter((l) => l.habitId === habitId && l.date >= start && l.date <= end)
+      .map((l) => l.date)
+  );
+
+  return { start, end, doneDates: set };
+}
+

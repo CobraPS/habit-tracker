@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { getDB, todayISO, isScheduledToday } from "./db";
 import { ensureNotificationsEnabled, showHabitNotification } from "./notifications";
+import CalendarView from "./CalendarView";
+
 
 function uid() {
   return crypto.randomUUID();
@@ -53,6 +55,8 @@ export default function App() {
   const [name, setName] = useState("");
   const [notifStatus, setNotifStatus] = useState(null);
   const [settings, setSettingsState] = useState({ reminderTime: "09:00" });
+  const [selectedHabitId, setSelectedHabitId] = useState("");
+
 
   const today = useMemo(() => todayISO(), []);
 
@@ -61,12 +65,16 @@ export default function App() {
     [habits]
   );
 
-  useEffect(() => {
-    (async () => {
-      setHabits(await loadAll());
-      setSettingsState(await getSettings());
-    })();
-  }, []);
+
+    useEffect(() => {
+  (async () => {
+    const hs = await loadAll();
+    setHabits(hs);
+    setSettingsState(await getSettings());
+    if (hs.length > 0) setSelectedHabitId(hs[0].id);
+  })();
+}, []);
+
 
   useEffect(() => {
     (async () => {
@@ -208,6 +216,14 @@ export default function App() {
           </ul>
         )}
       </div>
+      {habits.length > 0 && (
+  <CalendarView
+    habits={habits}
+    selectedHabitId={selectedHabitId || habits[0].id}
+    onSelectHabit={setSelectedHabitId}
+  />
+)}
+
 
       <p style={{ marginTop: 16, color: "#444" }}>
         Tip: Install it as an app (browser menu → “Install app”) for fastest access.
